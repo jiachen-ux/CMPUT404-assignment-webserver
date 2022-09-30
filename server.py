@@ -1,6 +1,7 @@
-#  coding: utf-8 
+import os
 import socketserver
 
+# Jiachen Xu
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,11 +29,67 @@ import socketserver
 
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    
+            
     def handle(self):
+    
         self.data = self.request.recv(1024).strip()
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        # print(str(self.data).split('\\r\\n'))
+        detail = str(self.data.decode('utf-8')).split('\r\n')[0].split(' ')
+        # print(detail)
+        action = detail[0]
+        url = detail[1]
+        path = os.getcwd()
+        
+        if '../' in url:
+            self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+            return
+
+        if action == 'GET':
+            if url[-1]=='/':
+                try:
+                    file = open("./www"+url+'index.html')
+                    # print(f'{path}/www/index.html')
+                    content = file.read()
+                    file.close()
+                    self.request.sendall(bytearray(f'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(content)}\r\n\r\n{content}','utf-8'))
+                    
+                except FileNotFoundError:
+                    self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+                
+            elif url[-1]!='/':
+                if url[-5:] == '.html':
+                    try:
+                        file = open("./www"+url)
+                        content = file.read()
+                        file.close()
+                        self.request.sendall(bytearray(f'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(content)}\r\n\r\n{content}','utf-8'))
+                        
+                    except FileNotFoundError:
+                        self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+                        
+                elif url[-4:] == '.css':
+                    try:
+                        file = open("./www"+url)
+                        content = file.read()
+                        file.close()
+                        self.request.sendall(bytearray(f'HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {len(content)}\r\n\r\n{content}','utf-8'))
+                        
+                    except FileNotFoundError:
+                        self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+                        
+                elif os.path.exists(path+'/www'+url):
+                    self.request.sendall(bytearray(f"HTTP/1.0 301 moved permanently to http://127.0.0.1:8080{url}/",'utf-8'))
+                
+                else:
+                    self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+
+            else:
+                self.request.sendall(bytearray("HTTP/1.0 404 NOT FOUND\r\nFile Not Found",'utf-8'))
+                    
+        else:
+            self.request.sendall(bytearray("HTTP/1.0 405 Method Not Allowed",'utf-8'))
+    
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
